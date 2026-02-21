@@ -12,55 +12,69 @@ app.get("/", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
+  // Responde imediatamente ao Telegram
   res.sendStatus(200);
 
   try {
     const message = req.body.message;
-    if (!message) return;
+    if (!message || !message.text) return;
 
     const chatId = message.chat.id;
     const userText = message.text;
 
     console.log("Mensagem recebida:", userText);
 
-    // 🔹 Chamada OpenRouter (modelo gratuito)
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://seubot.com",
-        "X-Title": "Assessor Digital Bot"
-      },
-      body: JSON.stringify({
-        model: "mistralai/mistral-7b-instruct:free",
-        messages: [
-          { role: "system", content: "Você é um assessor pessoal útil, organizado e direto." },
-          { role: "user", content: userText }
-        ],
-        temperature: 0.7
-      })
-    });
+    // 🔹 Chamada para OpenRouter (modelo gratuito mais rápido)
+    const aiResponse = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://railway.app",
+          "X-Title": "Assessor Digital Bot"
+        },
+        body: JSON.stringify({
+          model: "openchat/openchat-3.5-0106:free",
+          messages: [
+            {
+              role: "system",
+              content: "Você é um assessor pessoal inteligente, organizado, direto e prático."
+            },
+            {
+              role: "user",
+              content: userText
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      }
+    );
 
     const aiData = await aiResponse.json();
+
+    console.log("Resposta IA:", aiData);
 
     const reply =
       aiData.choices?.[0]?.message?.content ||
       "Desculpe, não consegui responder agora.";
 
+    // 🔹 Envia resposta para Telegram
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         chat_id: chatId,
-        text: reply,
-      }),
+        text: reply
+      })
     });
 
   } catch (error) {
-    console.error("Erro:", error);
+    console.error("Erro geral:", error);
   }
 });
 
