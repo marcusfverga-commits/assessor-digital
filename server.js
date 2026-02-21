@@ -42,8 +42,7 @@ app.post("/webhook", async (req, res) => {
       console.log("Mensagem recebida de:", from);
       console.log("Texto:", text);
 
-      // Resposta automática
-      await fetch(
+      const response = await fetch(
         `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
         {
           method: "POST",
@@ -56,11 +55,14 @@ app.post("/webhook", async (req, res) => {
             to: from,
             type: "text",
             text: {
-              body: `Olá 👋 Você disse: "${text}"`,
+              body: "Teste automático 🚀",
             },
           }),
         }
       );
+
+      const data = await response.json();
+      console.log("Resposta da Meta:", data);
     }
 
     res.sendStatus(200);
