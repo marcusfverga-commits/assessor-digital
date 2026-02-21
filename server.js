@@ -1,74 +1,60 @@
-import express from "express";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
+import express from "express"
+import axios from "axios"
 
-dotenv.config();
+const app = express()
+app.use(express.json())
 
-const app = express();
-app.use(express.json());
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
-app.post(`/${TELEGRAM_TOKEN}`, async (req, res) => {
+app.post("/", async (req, res) => {
   try {
-    const message = req.body.message;
+    const message = req.body.message
+    if (!message || !message.text) return res.sendStatus(200)
 
-    if (!message || !message.text) {
-      return res.sendStatus(200);
-    }
+    const chatId = message.chat.id
+    const userText = message.text
 
-    const chatId = message.chat.id;
-    const userText = message.text;
-
-    console.log("Mensagem recebida:", userText);
+    console.log("Mensagem recebida:", userText)
 
     // 🔥 CHAMADA PARA OPENROUTER
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openchat/openchat-3.5-0106",
+    const aiResponse = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "openai/gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "Você é um assistente inteligente e conversacional." },
+          { role: "system", content: "Você é um assistente útil e conversacional." },
           { role: "user", content: userText }
         ]
-      })
-    });
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    )
 
-    const data = await aiResponse.json();
+    const reply = aiResponse.data.choices[0].message.content
 
-    console.log("Resposta IA:", data);
-
-    const reply =
-      data.choices?.[0]?.message?.content ||
-      "Desculpe, não consegui responder agora.";
-
-    // 🔥 ENVIA RESPOSTA PARA TELEGRAM
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    // 📤 ENVIA RESPOSTA PARA TELEGRAM
+    await axios.post(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+      {
         chat_id: chatId,
         text: reply
-      })
-    });
+      }
+    )
 
-    res.sendStatus(200);
+    res.sendStatus(200)
 
   } catch (error) {
-    console.error("Erro:", error);
-    res.sendStatus(500);
+    console.error("Erro:", error.response?.data || error.message)
+    res.sendStatus(200)
   }
-});
+})
 
-app.get("/", (req, res) => {
-  res.send("Bot rodando!");
-});
-
-app.listen(8080, () => {
-  console.log("Servidor rodando na porta 8080");
-});
+const PORT = process.env.PORT || 8080
+app.listen(PORT, () => {
+  console.log("Servidor rodando na porta", PORT)
+})
