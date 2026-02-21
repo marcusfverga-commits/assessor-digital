@@ -1,6 +1,5 @@
 import express from "express";
 import fetch from "node-fetch";
-import AbortController from "abort-controller";
 
 const app = express();
 app.use(express.json());
@@ -23,9 +22,6 @@ app.post("/webhook", async (req, res) => {
     const userText = message.text;
 
     console.log("Mensagem recebida:", userText);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
     const aiResponse = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -51,12 +47,9 @@ app.post("/webhook", async (req, res) => {
           ],
           temperature: 0.7,
           max_tokens: 300
-        }),
-        signal: controller.signal
+        })
       }
     );
-
-    clearTimeout(timeout);
 
     const aiData = await aiResponse.json();
 
@@ -64,7 +57,7 @@ app.post("/webhook", async (req, res) => {
 
     const reply =
       aiData.choices?.[0]?.message?.content ||
-      "A IA demorou para responder. Tente novamente.";
+      "Erro ao gerar resposta da IA.";
 
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: "POST",
@@ -79,18 +72,6 @@ app.post("/webhook", async (req, res) => {
 
   } catch (error) {
     console.error("Erro geral:", error);
-
-    // Resposta fallback
-    if (req.body?.message?.chat?.id) {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: req.body.message.chat.id,
-          text: "Erro ao consultar IA. Tente novamente."
-        })
-      });
-    }
   }
 });
 
