@@ -1,0 +1,13 @@
+{
+  "name": "assessor-digital",
+  "version": "1.0.0",
+  "description": "Servidor do assessor digital",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
