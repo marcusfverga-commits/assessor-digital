@@ -5,16 +5,14 @@ const app = express();
 app.use(express.json());
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-// Rota padrão
 app.get("/", (req, res) => {
   res.send("Telegram IA Bot Online 🚀");
 });
 
-// Webhook Telegram
 app.post("/webhook", async (req, res) => {
-  res.sendStatus(200); // responde rápido ao Telegram
+  res.sendStatus(200);
 
   try {
     const message = req.body.message;
@@ -25,21 +23,23 @@ app.post("/webhook", async (req, res) => {
 
     console.log("Mensagem recebida:", userText);
 
-    // 🔹 Chamada para OpenAI
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // 🔹 Chamada OpenRouter (modelo gratuito)
+    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://seubot.com",
+        "X-Title": "Assessor Digital Bot"
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "mistralai/mistral-7b-instruct:free",
         messages: [
           { role: "system", content: "Você é um assessor pessoal útil, organizado e direto." },
           { role: "user", content: userText }
         ],
         temperature: 0.7
-      }),
+      })
     });
 
     const aiData = await aiResponse.json();
@@ -48,7 +48,6 @@ app.post("/webhook", async (req, res) => {
       aiData.choices?.[0]?.message?.content ||
       "Desculpe, não consegui responder agora.";
 
-    // 🔹 Envia resposta para Telegram
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: "POST",
       headers: {
