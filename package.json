@@ -1,9 +1,9 @@
 {
   "name": "assessor-digital",
   "version": "1.0.0",
-  "description": "WhatsApp Assessor Digital",
-  "type": "module",
+  "description": "Assessor Digital WhatsApp Bot",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
