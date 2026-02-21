@@ -1,4 +1,9 @@
 import express from "express";
+import TelegramBot from "node-telegram-bot-api";
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -6,56 +11,51 @@ app.use(express.json());
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-app.post(`/bot${TELEGRAM_TOKEN}`, async (req, res) => {
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+
+console.log("Bot iniciado...");
+
+bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
+  const texto = msg.text;
+
+  console.log("Mensagem recebida:", texto);
+
   try {
-    const message = req.body.message?.text;
-    const chatId = req.body.message?.chat?.id;
-
-    if (!message) return res.sendStatus(200);
-
-    console.log("Mensagem recebida:", message);
-
-    // Chamada OpenRouter (modelo gratuito correto)
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openchat/openchat-3.5-0106",
+    const resposta = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "mistralai/mistral-7b-instruct",
         messages: [
-          { role: "system", content: "Você é um assistente pessoal chamado Assessor Digital, ajuda a organizar tarefas, consultas e compromissos." },
-          { role: "user", content: message }
+          { role: "system", content: "Você é um assistente pessoal inteligente e útil." },
+          { role: "user", content: texto }
         ]
-      })
-    });
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    const data = await aiResponse.json();
+    const respostaTexto = resposta.data.choices[0].message.content;
 
-    const reply =
-      data.choices?.[0]?.message?.content ||
-      "Erro ao gerar resposta da IA.";
+    console.log("Resposta IA:", respostaTexto);
 
-    console.log("Resposta IA:", reply);
+    bot.sendMessage(chatId, respostaTexto);
 
-    // Enviar resposta ao Telegram
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: reply
-      })
-    });
-
-    res.sendStatus(200);
-  } catch (error) {
-    console.error("Erro geral:", error);
-    res.sendStatus(200);
+  } catch (erro) {
+    console.error("Erro IA:", erro.response?.data || erro.message);
+    bot.sendMessage(chatId, "Erro ao consultar IA.");
   }
 });
 
-app.listen(8080, () => {
-  console.log("Servidor rodando na porta 8080");
+app.get("/", (req, res) => {
+  res.send("Servidor rodando");
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log("Servidor rodando na porta", PORT);
 });
