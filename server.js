@@ -8,10 +8,12 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
+// Rota padrão
 app.get("/", (req, res) => {
   res.send("Assessor Digital Online 🚀");
 });
 
+// Verificação do webhook
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -25,25 +27,26 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-app.post("/webhook", async (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const message = value?.messages?.[0];
+// Receber mensagens
+app.post("/webhook", (req, res) => {
+  res.sendStatus(200); // RESPONDE IMEDIATAMENTE PARA A META
 
-    if (message) {
+  (async () => {
+    try {
+      const entry = req.body.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
+      const message = value?.messages?.[0];
+
+      if (!message) return;
+
       const from = message.from;
       const text = message.text?.body;
 
       console.log("Mensagem recebida de:", from);
       console.log("Texto:", text);
 
-      // ⚡ Responde imediatamente para evitar timeout
-      res.sendStatus(200);
-
-      // Envia resposta sem bloquear o webhook
-      fetch(
+      const response = await fetch(
         `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
         {
           method: "POST",
@@ -60,19 +63,14 @@ app.post("/webhook", async (req, res) => {
             },
           }),
         }
-      )
-        .then(r => r.json())
-        .then(data => console.log("Resposta da Meta:", data))
-        .catch(err => console.error("Erro envio:", err));
+      );
 
-      return;
+      const data = await response.json();
+      console.log("Resposta da Meta:", data);
+    } catch (error) {
+      console.error("Erro:", error);
     }
-
-    res.sendStatus(200);
-  } catch (error) {
-    console.error("Erro:", error);
-    res.sendStatus(500);
-  }
+  })();
 });
 
 const PORT = process.env.PORT || 3000;
