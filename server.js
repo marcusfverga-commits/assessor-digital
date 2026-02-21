@@ -5,30 +5,29 @@ app.use(express.json());
 
 const VERIFY_TOKEN = "assessor_token";
 
-// Teste raiz
+// Rota padrão
 app.get("/", (req, res) => {
   res.send("Assessor Digital Online 🚀");
 });
 
-// 🔹 Verificação do Webhook (OBRIGATÓRIO)
+// Verificação do webhook (Meta envia GET aqui)
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token) {
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("Webhook verificado!");
-      res.status(200).send(challenge);
-    } else {
-      res.sendStatus(403);
-    }
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("Webhook verificado com sucesso!");
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
   }
 });
 
-// 🔹 Receber mensagens do WhatsApp
+// Receber mensagens (Meta envia POST aqui)
 app.post("/webhook", (req, res) => {
-  console.log("Mensagem recebida:", JSON.stringify(req.body, null, 2));
+  console.log("Evento recebido:");
+  console.log(JSON.stringify(req.body, null, 2));
   res.sendStatus(200);
 });
 
