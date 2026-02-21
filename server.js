@@ -1,5 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
+import AbortController from "abort-controller";
 
 const app = express();
 app.use(express.json());
@@ -12,7 +13,6 @@ app.get("/", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-  // Responde imediatamente ao Telegram
   res.sendStatus(200);
 
   try {
@@ -24,7 +24,9 @@ app.post("/webhook", async (req, res) => {
 
     console.log("Mensagem recebida:", userText);
 
-    // 🔹 Chamada para OpenRouter (modelo gratuito mais rápido)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     const aiResponse = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -36,7 +38,7 @@ app.post("/webhook", async (req, res) => {
           "X-Title": "Assessor Digital Bot"
         },
         body: JSON.stringify({
-          model: "openchat/openchat-3.5-0106:free",
+          model: "mistralai/mistral-7b-instruct:free",
           messages: [
             {
               role: "system",
@@ -48,10 +50,13 @@ app.post("/webhook", async (req, res) => {
             }
           ],
           temperature: 0.7,
-          max_tokens: 500
-        })
+          max_tokens: 300
+        }),
+        signal: controller.signal
       }
     );
+
+    clearTimeout(timeout);
 
     const aiData = await aiResponse.json();
 
@@ -59,9 +64,8 @@ app.post("/webhook", async (req, res) => {
 
     const reply =
       aiData.choices?.[0]?.message?.content ||
-      "Desculpe, não consegui responder agora.";
+      "A IA demorou para responder. Tente novamente.";
 
-    // 🔹 Envia resposta para Telegram
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: "POST",
       headers: {
@@ -75,10 +79,22 @@ app.post("/webhook", async (req, res) => {
 
   } catch (error) {
     console.error("Erro geral:", error);
+
+    // Resposta fallback
+    if (req.body?.message?.chat?.id) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: req.body.message.chat.id,
+          text: "Erro ao consultar IA. Tente novamente."
+        })
+      });
+    }
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
