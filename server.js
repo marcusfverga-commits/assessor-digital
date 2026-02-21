@@ -4,73 +4,44 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.json());
 
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
 // Rota padrão
 app.get("/", (req, res) => {
-  res.send("Assessor Digital Online 🚀");
+  res.send("Telegram Bot Online 🚀");
 });
 
-// Verificação do webhook
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+// Webhook Telegram
+app.post("/webhook", async (req, res) => {
+  try {
+    const message = req.body.message;
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("Webhook verificado com sucesso!");
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
-});
-
-// Receber mensagens
-app.post("/webhook", (req, res) => {
-  res.sendStatus(200); // RESPONDE IMEDIATAMENTE PARA A META
-
-  (async () => {
-    try {
-      const entry = req.body.entry?.[0];
-      const changes = entry?.changes?.[0];
-      const value = changes?.value;
-      const message = value?.messages?.[0];
-
-      if (!message) return;
-
-      const from = message.from;
-      const text = message.text?.body;
-
-      console.log("Mensagem recebida de:", from);
-      console.log("Texto:", text);
-
-      const response = await fetch(
-        `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: from,
-            type: "text",
-            text: {
-              body: `Olá 👋 Você disse: "${text}"`,
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-      console.log("Resposta da Meta:", data);
-    } catch (error) {
-      console.error("Erro:", error);
+    if (!message) {
+      return res.sendStatus(200);
     }
-  })();
+
+    const chatId = message.chat.id;
+    const text = message.text;
+
+    console.log("Mensagem recebida:", text);
+
+    // Resposta automática
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `Você disse: "${text}"`,
+      }),
+    });
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Erro:", error);
+    res.sendStatus(500);
+  }
 });
 
 const PORT = process.env.PORT || 3000;
